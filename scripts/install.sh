@@ -193,60 +193,6 @@ run_docker_install() {
     
     local docker_script="install-docker.sh"
     
-    # Check if Docker is available
-    if ! check_docker_available; then
-        print_warning "Docker is not currently running."
-        echo ""
-        echo "Docker installation requires Docker to be running."
-        echo ""
-        echo "Options:"
-        echo "  1. Let the installer try to start Docker for you"
-        echo "  2. Start Docker manually and run the installer again"
-        echo "  3. Go back and choose a different installation method"
-        echo "  0. Exit"
-        echo ""
-        
-        local docker_choice
-        read -p "What would you like to do? [1]: " docker_choice
-        docker_choice=${docker_choice:-1}
-        
-        case $docker_choice in
-            1)
-                if ! start_docker; then
-                    print_error "Failed to start Docker automatically."
-                    echo ""
-                    print_info "Please start Docker manually:"
-                    echo "  • macOS: Open Docker Desktop from Applications or run 'colima start'"
-                    echo "  • Linux: sudo systemctl start docker"
-                    echo "  • Windows: Start Docker Desktop"
-                    echo ""
-                    print_info "Then run this installer again."
-                    exit 1
-                fi
-                ;;
-            2)
-                print_info "Please start Docker and run the installer again."
-                exit 0
-                ;;
-            3)
-                echo ""
-                main
-                return
-                ;;
-            0)
-                print_info "Installation cancelled."
-                exit 0
-                ;;
-            *)
-                print_error "Invalid choice."
-                exit 1
-                ;;
-        esac
-    else
-        print_success "Docker is running!"
-        echo ""
-    fi
-    
     # Download Docker script if not present
     if ! download_script "$docker_script"; then
         print_error "Cannot proceed without $docker_script"
@@ -254,9 +200,8 @@ run_docker_install() {
         exit 1
     fi
     
-    # Run the script with NO_FALLBACK flag
+    # Run the script - it will handle Docker availability and starting
     if [[ -f "$SCRIPT_DIR/$docker_script" ]]; then
-        export SHOPWARE_INSTALL_NO_FALLBACK=1
         bash "$SCRIPT_DIR/$docker_script"
     else
         print_error "$docker_script not found after download!"
