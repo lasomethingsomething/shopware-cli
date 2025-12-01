@@ -17,6 +17,16 @@ NC=$'\e[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Ensure helper scripts exist when running from curl
+ensure_script() {
+    local f="$1"
+    if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
+        curl -fsSL "https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts/$f" \
+            -o "$SCRIPT_DIR/$f"
+        chmod +x "$SCRIPT_DIR/$f"
+    fi
+}
+
 # Defaults (can be overridden via env var or CLI)
 INSTALL_METHOD="${INSTALL_METHOD:-}"   # "docker", "devenv", "symfony"
 AUTO_YES="${AUTO_YES:-false}"          # if true skip prompts
