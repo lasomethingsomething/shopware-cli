@@ -60,12 +60,75 @@ download_script() {
     return 0
 }
 
+# Check if Docker is available
+check_docker_available() {
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Attempt to start Docker
+start_docker() {
+    print_info "Docker is not running. Attempting to start Docker..."
+    
+    # Try Docker Desktop on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if [ -d "/Applications/Docker.app" ]; then
+            print_info "Starting Docker Desktop..."
+            open -a Docker
+            
+            # Wait for Docker to start (max 60 seconds)
+            print_info "Waiting for Docker to start (this may take up to 60 seconds)..."
+            local count=0
+            while [ $count -lt 60 ]; do
+                if check_docker_available; then
+                    print_success "Docker is now running!"
+                    return 0
+                fi
+                sleep 2
+                count=$((count + 2))
+            done
+            
+            print_error "Docker Desktop did not start within 60 seconds."
+            return 1
+        elif command -v colima &> /dev/null; then
+            print_info "Starting Colima..."
+            colima start
+            sleep 5
+            if check_docker_available; then
+                print_success "Colima started successfully!"
+                return 0
+            else
+                print_error "Failed to start Colima."
+                return 1
+            fi
+        fi
+    fi
+    
+    # Try starting Docker on Linux
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if command -v systemctl &> /dev/null; then
+            print_info "Attempting to start Docker service..."
+            sudo systemctl start docker
+            sleep 3
+            if check_docker_available; then
+                print_success "Docker service started successfully!"
+                return 0
+            fi
+        fi
+    fi
+    
+    return 1
+}
+
 # Display welcome banner
 show_banner() {
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
-    echo "║          Shopware 6 Installation Script                    ║"
+    echo "║          Shopware 6 Installation Script                   ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
@@ -129,7 +192,60 @@ run_docker_install() {
     echo ""
     
     local docker_script="install-docker.sh"
-    local fallback_script="install-symfony-cli.sh"
+    
+    # Check if Docker is available
+    if ! check_docker_available; then
+        print_warning "Docker is not currently running."
+        echo ""
+        echo "Docker installation requires Docker to be running."
+        echo ""
+        echo "Options:"
+        echo "  1. Let the installer try to start Docker for you"
+        echo "  2. Start Docker manually and run the installer again"
+        echo "  3. Go back and choose a different installation method"
+        echo "  0. Exit"
+        echo ""
+        
+        local docker_choice
+        read -p "What would you like to do? [1]: " docker_choice
+        docker_choice=${docker_choice:-1}
+        
+        case $docker_choice in
+            1)
+                if ! start_docker; then
+                    print_error "Failed to start Docker automatically."
+                    echo ""
+                    print_info "Please start Docker manually:"
+                    echo "  • macOS: Open Docker Desktop from Applications or run 'colima start'"
+                    echo "  • Linux: sudo systemctl start docker"
+                    echo "  • Windows: Start Docker Desktop"
+                    echo ""
+                    print_info "Then run this installer again."
+                    exit 1
+                fi
+                ;;
+            2)
+                print_info "Please start Docker and run the installer again."
+                exit 0
+                ;;
+            3)
+                echo ""
+                main
+                return
+                ;;
+            0)
+                print_info "Installation cancelled."
+                exit 0
+                ;;
+            *)
+                print_error "Invalid choice."
+                exit 1
+                ;;
+        esac
+    else
+        print_success "Docker is running!"
+        echo ""
+    fi
     
     # Download Docker script if not present
     if ! download_script "$docker_script"; then
@@ -138,12 +254,9 @@ run_docker_install() {
         exit 1
     fi
     
-    # Pre-download the Symfony CLI fallback script silently
-    # (install-docker.sh may need it if Docker isn't available)
-    download_script "$fallback_script" > /dev/null 2>&1 || true
-    
-    # Run the script
+    # Run the script with NO_FALLBACK flag
     if [[ -f "$SCRIPT_DIR/$docker_script" ]]; then
+        export SHOPWARE_INSTALL_NO_FALLBACK=1
         bash "$SCRIPT_DIR/$docker_script"
     else
         print_error "$docker_script not found after download!"
