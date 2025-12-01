@@ -40,7 +40,6 @@ print_header() {
 
 # Display welcome banner
 show_banner() {
-    clear
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
