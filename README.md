@@ -15,35 +15,25 @@ For docs see [here](https://developer.shopware.com/docs/products/cli/)
 
 Automated installation script for setting up Shopware with Docker/OrbStack/Podman.
 
-### Quick Start
+## Quick Start Installation
+
+Choose your preferred installation method:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts/install-docker.sh | bash
+# Download and run the interactive installer
+curl -fsSL https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
 ```
 
-Or clone and run:
-```bash
-git clone https://github.com/lasomethingsomething/shopware-cli.git
-cd shopware-cli
-chmod +x scripts/install-docker.sh
-./scripts/install-docker.sh
-```
+### Installation Methods
 
-### Features
+- **Docker** (Recommended) - Full containerized setup
+- **Devenv** - Nix-based reproducible environments  
+- **Symfony CLI** - Lightweight using local PHP
 
-- Automatic detection of Docker, OrbStack, or Podman
-- Interactive configuration (PHP, Node, web server versions)
-- Optional Minio S3 storage
-- Optional XDebug debugging
-- Optional production image proxy
-- OrbStack routing support
-- Full prerequisite checks
-```
-
-That's it! The script will be live at:
-```
-https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts/install-docker.sh
-
+See [scripts/README.md](scripts/README.md) for detailed documentation.
 ## Contributing
 
 Contributions are always welcome!
+
 
