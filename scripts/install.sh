@@ -25,9 +25,8 @@ print_header() { echo -e "${CYAN}${BOLD}$*${NC}"; }
 # Trap to show failing command + line for easier debugging
 trap 'ret=$?; echo -e "${RED}[ERROR] Command failed at line $LINENO (exit $ret)${NC}"; exit $ret' ERR
 
-# Print banner
+# Print banner (removed 'clear' to avoid clearing terminal scrollback)
 show_banner() {
-  clear
   echo ""
   echo "╔════════════════════════════════════════════════════════════╗"
   echo "║                                                            ║"
