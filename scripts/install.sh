@@ -40,11 +40,10 @@ print_header() {
 
 # Display welcome banner
 show_banner() {
-    clear
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
-    echo "║          Shopware 6 Installation Script                   ║"
+    echo "║          Shopware 6 Installation Script                    ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
