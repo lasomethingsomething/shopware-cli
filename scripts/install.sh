@@ -17,6 +17,9 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Base URL for downloading scripts
+BASE_URL="https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts"
+
 # Function to print colored messages
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -38,12 +41,31 @@ print_header() {
     echo -e "${CYAN}${BOLD}$1${NC}"
 }
 
+# Function to download a script if it doesn't exist
+download_script() {
+    local script_name="$1"
+    local script_path="$SCRIPT_DIR/$script_name"
+    
+    if [[ ! -f "$script_path" ]]; then
+        print_info "Downloading $script_name..."
+        if curl -fsSL "$BASE_URL/$script_name" -o "$script_path"; then
+            chmod +x "$script_path"
+            print_success "Downloaded $script_name"
+            return 0
+        else
+            print_error "Failed to download $script_name"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Display welcome banner
 show_banner() {
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
-    echo "║          Shopware 6 Installation Script                    ║"
+    echo "║          Shopware 6 Installation Script                   ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
@@ -106,11 +128,20 @@ run_docker_install() {
     print_header "Starting Docker Installation..."
     echo ""
     
-    if [[ -f "$SCRIPT_DIR/install-docker.sh" ]]; then
-        bash "$SCRIPT_DIR/install-docker.sh"
+    local docker_script="install-docker.sh"
+    
+    # Download if not present
+    if ! download_script "$docker_script"; then
+        print_error "Cannot proceed without $docker_script"
+        print_info "Please check your internet connection and try again."
+        exit 1
+    fi
+    
+    # Run the script
+    if [[ -f "$SCRIPT_DIR/$docker_script" ]]; then
+        bash "$SCRIPT_DIR/$docker_script"
     else
-        print_error "install-docker.sh not found!"
-        print_info "Please ensure the script is in the same directory as this installer."
+        print_error "$docker_script not found after download!"
         exit 1
     fi
 }
@@ -120,11 +151,19 @@ run_devenv_install() {
     print_header "Starting Devenv Installation..."
     echo ""
     
-    if [[ -f "$SCRIPT_DIR/install-devenv.sh" ]]; then
-        bash "$SCRIPT_DIR/install-devenv.sh"
+    local devenv_script="install-devenv.sh"
+    
+    # Try to download the script
+    if download_script "$devenv_script"; then
+        # Run the script if it exists
+        if [[ -f "$SCRIPT_DIR/$devenv_script" ]]; then
+            bash "$SCRIPT_DIR/$devenv_script"
+        else
+            print_error "$devenv_script not found after download!"
+            exit 1
+        fi
     else
-        print_error "install-devenv.sh not found!"
-        print_info "This installation method is not yet available."
+        print_warning "$devenv_script is not yet available."
         print_info "Visit: https://developer.shopware.com/docs/guides/installation/setups/devenv.html"
         exit 1
     fi
@@ -135,11 +174,19 @@ run_symfony_cli_install() {
     print_header "Starting Symfony CLI Installation..."
     echo ""
     
-    if [[ -f "$SCRIPT_DIR/install-symfony-cli.sh" ]]; then
-        bash "$SCRIPT_DIR/install-symfony-cli.sh"
+    local symfony_script="install-symfony-cli.sh"
+    
+    # Try to download the script
+    if download_script "$symfony_script"; then
+        # Run the script if it exists
+        if [[ -f "$SCRIPT_DIR/$symfony_script" ]]; then
+            bash "$SCRIPT_DIR/$symfony_script"
+        else
+            print_error "$symfony_script not found after download!"
+            exit 1
+        fi
     else
-        print_error "install-symfony-cli.sh not found!"
-        print_info "This installation method is not yet available."
+        print_warning "$symfony_script is not yet available."
         print_info "Visit: https://developer.shopware.com/docs/guides/installation/setups/symfony-cli.html"
         exit 1
     fi
