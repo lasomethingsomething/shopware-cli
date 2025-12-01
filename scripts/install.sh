@@ -45,7 +45,7 @@ show_banner() {
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
-    echo "║          Shopware 6 Installation Script                   ║"
+    echo "║          Shopware 6 Installation Script                    ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
@@ -56,30 +56,30 @@ show_installation_methods() {
     echo ""
     print_header "Choose Your Installation Method:"
     echo ""
-    
-    echo "  ${BOLD}1. Docker${NC} (Recommended for most users)"
+
+    echo -e "  ${BOLD}1. Docker${NC} (Recommended for most users)"
     echo "     • Full containerized setup with PHP, Node, and all services"
     echo "     • Works on macOS, Linux, and Windows (WSL2)"
     echo "     • Supports Docker Desktop, OrbStack, and Podman"
     echo "     • Easiest to set up and mirrors production environment"
     echo ""
-    
-    echo "  ${BOLD}2. Devenv${NC} (Advanced - Reproducible environments)"
+
+    echo -e "  ${BOLD}2. Devenv${NC} (Advanced - Reproducible environments)"
     echo "     • Nix-based development environment"
     echo "     • Native performance (no containers/VMs)"
     echo "     • Per-project isolated binaries and services"
     echo "     • Ideal for Shopware core contributors"
     echo "     • Requires Nix package manager"
     echo ""
-    
-    echo "  ${BOLD}3. Symfony CLI${NC} (Lightweight - Use local PHP)"
+
+    echo -e "  ${BOLD}3. Symfony CLI${NC} (Lightweight - Use local PHP)"
     echo "     • Uses your system's PHP, Composer, and Node.js"
     echo "     • Lightweight and fast"
     echo "     • Optional Docker for database only"
     echo "     • Good if you already have PHP/MySQL installed"
     echo ""
-    
-    echo "  ${BOLD}0. Exit${NC}"
+
+    echo -e "  ${BOLD}0. Exit${NC}"
     echo ""
 }
 
