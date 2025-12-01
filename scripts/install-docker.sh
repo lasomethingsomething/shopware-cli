@@ -7,8 +7,8 @@ IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG="/tmp/shopware-install-docker.$(date -u +%Y%m%dT%H%M%SZ).log"
-DOCKER_WAIT_SECS=40
-COLIMA_WAIT_SECS=30
+DOCKER_WAIT_SECS=90
+COLIMA_WAIT_SECS=60
 
 info(){ printf '%s %s\n' "[INFO]" "$*" | tee -a "$LOG"; }
 warn(){ printf '%s %s\n' "[WARN]" "$*" | tee -a "$LOG"; }
@@ -82,14 +82,7 @@ ensure_docker_available(){
     return 0
   fi
 
-  # Check if we're being called with NO_FALLBACK flag from the master installer
-  if [[ "${SHOPWARE_INSTALL_NO_FALLBACK:-}" == "1" ]]; then
-    err "Docker is not available and automatic fallback is disabled."
-    err "Please start Docker and try again, or choose a different installation method."
-    exit 1
-  fi
-
-  info "Docker daemon not reachable. Will try to start Colima or Docker Desktop (non-interactive attempts)."
+  info "Docker daemon not reachable. Attempting to start Docker..."
 
   # Try Colima first
   if try_start_colima; then
