@@ -65,7 +65,7 @@ show_banner() {
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
-    echo "║          Shopware 6 Installation Script                   ║"
+    echo "║          Shopware 6 Installation Script                    ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
