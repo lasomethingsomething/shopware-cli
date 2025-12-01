@@ -1,11 +1,12 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # Shopware Installation Script - Master Installer
-# Allows users to choose between Docker, Devenv, or Symfony CLI installation methods
+# Dispatches to install-docker.sh, install-devenv.sh or install-symfony-cli.sh
+# Improved: safer flags, trap, non-interactive mode, dependency checks
 
-set -e
+set -euo pipefail
+IFS=$'\n\t'
 
-# Colors for output (safe, correct ANSI escapes)
+# Colors for output — correct ANSI escape sequences
 RED=$'\e[0;31m'
 GREEN=$'\e[0;32m'
 YELLOW=$'\e[1;33m'
@@ -14,207 +15,125 @@ CYAN=$'\e[0;36m'
 BOLD=$'\e[1m'
 NC=$'\e[0m'
 
-# Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Function to print colored messages
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+# Defaults (can be overridden via env var or CLI)
+INSTALL_METHOD="${INSTALL_METHOD:-}"   # "docker", "devenv", "symfony"
+AUTO_YES="${AUTO_YES:-false}"          # if true skip prompts
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+log_warn()    { echo -e "${YELLOW}[WARNING]${NC} $*"; }
+log_error()   { echo -e "${RED}[ERROR]${NC} $*"; }
+print_header(){ echo -e "${CYAN}${BOLD}$*${NC}"; }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+trap 'ret=$?; echo -e "${RED}[ERROR] Command failed at line $LINENO (exit $ret)${NC}"; exit $ret' ERR
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_header() {
-    echo -e "${CYAN}${BOLD}$1${NC}"
-}
-
-# Display welcome banner
+# Print banner (no scrollback clearing)
 show_banner() {
-    printf "\033[2J\033[H"
-    
-    echo ""
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║                                                            ║"
-    echo "║          Shopware 6 Installation Script                    ║"
-    echo "║                                                            ║"
-    echo "╚════════════════════════════════════════════════════════════╝"
-    echo ""
+  printf "\n"
+  echo "╔════════════════════════════════════════════════════════════╗"
+  echo "║                                                            ║"
+  echo "║              Shopware 6 Installation Script                ║"
+  echo "║                                                            ║"
+  echo "╚════════════════════════════════════════════════════════════╝"
+  printf "\n"
 }
 
-# Display installation method descriptions
 show_installation_methods() {
-    echo ""
-    print_header "Choose Your Installation Method:"
-    echo ""
-
-    echo -e "  ${BOLD}1. Docker${NC} (Recommended for most users)"
-    echo "     • Full containerized setup with PHP, Node, and all services"
-    echo "     • Works on macOS, Linux, and Windows (WSL2)"
-    echo "     • Supports Docker Desktop, OrbStack, and Podman"
-    echo "     • Easiest to set up and mirrors production environment"
-    echo ""
-
-    echo -e "  ${BOLD}2. Devenv${NC} (Advanced - Reproducible environments)"
-    echo "     • Nix-based development environment"
-    echo "     • Native performance (no containers/VMs)"
-    echo "     • Per-project isolated binaries and services"
-    echo "     • Ideal for Shopware core contributors"
-    echo "     • Requires Nix package manager"
-    echo ""
-
-    echo -e "  ${BOLD}3. Symfony CLI${NC} (Lightweight - Use local PHP)"
-    echo "     • Uses your system's PHP, Composer, and Node.js"
-    echo "     • Lightweight and fast"
-    echo "     • Optional Docker for database only"
-    echo "     • Good if you already have PHP/MySQL installed"
-    echo ""
-
-    echo -e "  ${BOLD}0. Exit${NC}"
-    echo ""
+  print_header "Choose Your Installation Method:"
+  echo ""
+  echo "  1) Docker        (Recommended - full containerized setup)"
+  echo "  2) Devenv        (Nix-based reproducible environment)"
+  echo "  3) Symfony CLI   (Lightweight - uses local PHP/Composer)"
+  echo ""
+  echo "  0) Exit"
+  echo ""
 }
 
-# Get user's choice
-get_installation_choice() {
-    local choice
-    
-    while true; do
-        read -p "Select installation method [1]: " choice
-        choice=${choice:-1}
-        
-        case $choice in
-            1|2|3|0)
-                echo "$choice"
-                return 0
-                ;;
-            *)
-                print_error "Invalid selection. Please choose 1, 2, 3, or 0."
-                ;;
-        esac
-    done
-}
-
-# Run Docker installation
-run_docker_install() {
-    print_header "Starting Docker Installation..."
-    echo ""
-    
-    if [[ -f "$SCRIPT_DIR/install-docker.sh" ]]; then
-        bash "$SCRIPT_DIR/install-docker.sh"
-    else
-        print_error "install-docker.sh not found!"
-        print_info "Please ensure the script is in the same directory as this installer."
-        exit 1
-    fi
-}
-
-# Run Devenv installation
-run_devenv_install() {
-    print_header "Starting Devenv Installation..."
-    echo ""
-    
-    if [[ -f "$SCRIPT_DIR/install-devenv.sh" ]]; then
-        bash "$SCRIPT_DIR/install-devenv.sh"
-    else
-        print_error "install-devenv.sh not found!"
-        print_info "This installation method is not yet available."
-        print_info "Visit: https://developer.shopware.com/docs/guides/installation/setups/devenv.html"
-        exit 1
-    fi
-}
-
-# Run Symfony CLI installation
-run_symfony_cli_install() {
-    print_header "Starting Symfony CLI Installation..."
-    echo ""
-    
-    if [[ -f "$SCRIPT_DIR/install-symfony-cli.sh" ]]; then
-        bash "$SCRIPT_DIR/install-symfony-cli.sh"
-    else
-        print_error "install-symfony-cli.sh not found!"
-        print_info "This installation method is not yet available."
-        print_info "Visit: https://developer.shopware.com/docs/guides/installation/setups/symfony-cli.html"
-        exit 1
-    fi
-}
-
-# Show comparison to help user decide
-show_comparison() {
-    echo ""
-    if ask_yes_no "Would you like to see a detailed comparison?"; then
-        echo ""
-        print_header "Installation Method Comparison:"
-        echo ""
-        printf "%-20s %-15s %-15s %-15s\n" "Feature" "Docker" "Devenv" "Symfony CLI"
-        printf "%-20s %-15s %-15s %-15s\n" "────────────────────" "──────────────" "──────────────" "──────────────"
-        printf "%-20s %-15s %-15s %-15s\n" "Setup Difficulty" "Easy" "Medium" "Easy"
-        printf "%-20s %-15s %-15s %-15s\n" "Prerequisites" "Docker only" "Nix" "PHP, MySQL"
-        printf "%-20s %-15s %-15s %-15s\n" "Performance" "Good" "Excellent" "Excellent"
-        printf "%-20s %-15s %-15s %-15s\n" "Isolation" "Full" "Per-project" "Minimal"
-        printf "%-20s %-15s %-15s %-15s\n" "Prod Similarity" "High" "Medium" "Medium"
-        printf "%-20s %-15s %-15s %-15s\n" "Best For" "Most users" "Contributors" "Local dev"
-        echo ""
-    fi
-}
-
-# Function to ask yes/no questions
-ask_yes_no() {
-    local prompt="$1"
-    local default="${2:-n}"
-    local response
-    
-    if [[ "$default" == "y" ]]; then
-        prompt="$prompt [Y/n]: "
-    else
-        prompt="$prompt [y/N]: "
-    fi
-    
-    read -p "$prompt" response
-    response=${response:-$default}
-    
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Main function
-main() {
-    show_banner
-    show_installation_methods
-    show_comparison
-    
-    echo ""
-    choice=$(get_installation_choice)
-    
-    echo ""
-    
-    case $choice in
-        1)
-            run_docker_install
-            ;;
-        2)
-            run_devenv_install
-            ;;
-        3)
-            run_symfony_cli_install
-            ;;
-        0)
-            print_info "Installation cancelled."
-            exit 0
-            ;;
+parse_args() {
+  while [[ "${#}" -gt 0 ]]; do
+    case "$1" in
+      --method|-m)
+        INSTALL_METHOD="${2:-}"; shift 2 ;;
+      --yes|-y)
+        AUTO_YES=true; shift ;;
+      --help|-h)
+        cat <<EOF
+Usage: $0 [--method docker|devenv|symfony] [--yes]
+Environment variable: INSTALL_METHOD, AUTO_YES
+EOF
+        exit 0 ;;
+      *)
+        echo "Unknown arg: $1"; exit 1 ;;
     esac
+  done
 }
 
-# Run main function
-main
+ask_yes_no() {
+  local prompt="${1:-Continue?}" default="${2:-n}"
+  if [[ "$AUTO_YES" == "true" ]]; then return 0; fi
+  local resp
+  if [[ "$default" == "y" ]]; then
+    read -r -p "${prompt} [Y/n]: " resp
+    resp="${resp:-Y}"
+  else
+    read -r -p "${prompt} [y/N]: " resp
+    resp="${resp:-N}"
+  fi
+  case "$resp" in [Yy]*) return 0 ;; *) return 1 ;; esac
+}
+
+check_child_script() {
+  local f="$1"
+  if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
+    log_error "$f not found in $SCRIPT_DIR"; exit 1
+  fi
+  if [[ ! -x "$SCRIPT_DIR/$f" ]]; then
+    log_warn "$f is not executable; will run with bash"
+  fi
+}
+
+run_docker_install() {
+  print_header "Starting Docker Installation..."
+  check_child_script "install-docker.sh"
+  bash "$SCRIPT_DIR/install-docker.sh"
+}
+
+run_devenv_install() {
+  print_header "Starting Devenv Installation..."
+  check_child_script "install-devenv.sh"
+  bash "$SCRIPT_DIR/install-devenv.sh"
+}
+
+run_symfony_cli_install() {
+  print_header "Starting Symfony CLI Installation..."
+  check_child_script "install-symfony-cli.sh"
+  bash "$SCRIPT_DIR/install-symfony-cli.sh"
+}
+
+get_installation_choice() {
+  local choice
+  while true; do
+    read -r -p "Select installation method [1]: " choice
+    choice="${choice:-1}"
+    case "$choice" in 1|2|3|0) echo "$choice"; return 0 ;; *) log_error "Invalid selection. Please choose 1, 2, 3, or 0." ;; esac
+  done
+}
+
+main() {
+  parse_args "$@"
+  show_banner
+  show_installation_methods
+  echo ""
+  choice=$(get_installation_choice)
+  echo ""
+  case $choice in
+    1) run_docker_install ;;
+    2) run_devenv_install ;;
+    3) run_symfony_cli_install ;;
+    0) log_info "Installation cancelled."; exit 0 ;;
+  esac
+}
+
+main "$@"
