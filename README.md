@@ -17,7 +17,6 @@ Automated installation script for setting up Shopware with Docker/OrbStack/Podma
 
 Choose your preferred installation method:
 ```bash
-# Download and run the interactive installer
 curl -fsSL https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh
@@ -32,6 +31,7 @@ See [scripts/README.md](scripts/README.md) for detailed documentation.
 ## Contributing
 
 Contributions are always welcome!
+
 
 
 
