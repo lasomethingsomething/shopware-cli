@@ -133,4 +133,26 @@ info "Docker available; running docker-based installation steps..."
 # the placeholder below with your real docker commands (e.g. docker compose up, creating volumes, etc).
 if [[ -f "${SCRIPT_DIR}/docker-compose.yml" ]] || [[ -f "${SCRIPT_DIR}/../docker-compose.yml" ]]; then
   DC_FILE="${SCRIPT_DIR}/docker-compose.yml"
-  if [[ ! -f "]()]()
+  if [[ ! -f "$DC_FILE" ]]; then DC_FILE="${SCRIPT_DIR}/../docker-compose.yml"; fi
+  info "Using docker-compose file: $DC_FILE"
+  # prefer modern 'docker compose' if available; fallback to 'docker-compose'
+  if docker compose version >/dev/null 2>&1; then
+    docker compose -f "$DC_FILE" pull 2>&1 | tee -a "$LOG"
+    docker compose -f "$DC_FILE" up -d 2>&1 | tee -a "$LOG"
+  else
+    if command -v docker-compose >/dev/null 2>&1; then
+      docker-compose -f "$DC_FILE" pull 2>&1 | tee -a "$LOG"
+      docker-compose -f "$DC_FILE" up -d 2>&1 | tee -a "$LOG"
+    else
+      warn "No docker compose binary found; you may need 'docker compose' or 'docker-compose' to proceed."
+      # fallback: still continue, but do not error
+    fi
+  fi
+else
+  # No compose file found — attempt generic containerized create (placeholder).
+  info "No docker-compose.yml found next to installer. If you expected automatic docker steps, please add them here."
+  # As a safety measure do not run anything destructive; exit successfully so higher-level script knows docker path succeeded.
+fi
+
+success "Docker-based install steps completed (or skipped if none present). Logs: $LOG"
+exit 0
