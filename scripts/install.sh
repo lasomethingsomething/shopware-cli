@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 # Shopware Installation Script - Master Installer
-# Dispatches to install-docker.sh, install-devenv.sh or install-symfony-cli.sh
-# Improved: safer flags, trap, non-interactive mode, dependency checks
-
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -17,20 +14,6 @@ NC=$'\e[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Ensure helper scripts exist when running from curl
-ensure_script() {
-    local f="$1"
-    if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
-        curl -fsSL "https://raw.githubusercontent.com/lasomethingsomething/shopware-cli/main/scripts/$f" \
-            -o "$SCRIPT_DIR/$f"
-        chmod +x "$SCRIPT_DIR/$f"
-    fi
-}
-
-# Defaults (can be overridden via env var or CLI)
-INSTALL_METHOD="${INSTALL_METHOD:-}"   # "docker", "devenv", "symfony"
-AUTO_YES="${AUTO_YES:-false}"          # if true skip prompts
-
 log_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
 log_warn()    { echo -e "${YELLOW}[WARNING]${NC} $*"; }
@@ -41,23 +24,24 @@ trap 'ret=$?; echo -e "${RED}[ERROR] Command failed at line $LINENO (exit $ret)$
 
 # Print banner (no scrollback clearing)
 show_banner() {
-  printf "\n"
+  printf "\033[2J\033[H"
+  echo ""
   echo "╔════════════════════════════════════════════════════════════╗"
   echo "║                                                            ║"
   echo "║              Shopware 6 Installation Script                ║"
   echo "║                                                            ║"
   echo "╚════════════════════════════════════════════════════════════╝"
-  printf "\n"
+  echo ""
 }
 
 show_installation_methods() {
   print_header "Choose Your Installation Method:"
   echo ""
-  echo "  1) Docker        (Recommended - full containerized setup)"
-  echo "  2) Devenv        (Nix-based reproducible environment)"
-  echo "  3) Symfony CLI   (Lightweight - uses local PHP/Composer)"
+  echo -e "  ${BOLD}1) Docker${NC}        (Recommended - full containerized setup)"
+  echo -e "  ${BOLD}2) Devenv${NC}        (Nix-based reproducible environment)"
+  echo -e "  ${BOLD}3) Symfony CLI${NC}   (Lightweight - uses local PHP/Composer)"
   echo ""
-  echo "  0) Exit"
+  echo -e "  ${BOLD}0) Exit${NC}"
   echo ""
 }
 
@@ -99,9 +83,6 @@ check_child_script() {
   if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
     log_error "$f not found in $SCRIPT_DIR"; exit 1
   fi
-  if [[ ! -x "$SCRIPT_DIR/$f" ]]; then
-    log_warn "$f is not executable; will run with bash"
-  fi
 }
 
 run_docker_install() {
@@ -127,7 +108,10 @@ get_installation_choice() {
   while true; do
     read -r -p "Select installation method [1]: " choice
     choice="${choice:-1}"
-    case "$choice" in 1|2|3|0) echo "$choice"; return 0 ;; *) log_error "Invalid selection. Please choose 1, 2, 3, or 0." ;; esac
+    case "$choice" in
+      1|2|3|0) echo "$choice"; return ;;
+      *) log_error "Invalid selection. Please choose 1, 2, 3, or 0." ;;
+    esac
   done
 }
 
