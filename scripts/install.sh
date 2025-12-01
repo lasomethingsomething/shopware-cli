@@ -40,6 +40,8 @@ print_header() {
 
 # Display welcome banner
 show_banner() {
+    printf "\033[2J\033[H"
+    
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                                                            ║"
