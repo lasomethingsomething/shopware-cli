@@ -77,14 +77,14 @@ show_installation_methods() {
     print_header "Choose Your Installation Method:"
     echo ""
     
-    echo "  ${BOLD}1. Docker${NC} (Recommended for most users)"
+    echo -e "  ${BOLD}1. Docker${NC} (Recommended for most users)"
     echo "     • Full containerized setup with PHP, Node, and all services"
     echo "     • Works on macOS, Linux, and Windows (WSL2)"
     echo "     • Supports Docker Desktop, OrbStack, and Podman"
     echo "     • Easiest to set up and mirrors production environment"
     echo ""
     
-    echo "  ${BOLD}2. Devenv${NC} (Advanced - Reproducible environments)"
+    echo -e "  ${BOLD}2. Devenv${NC} (Advanced - Reproducible environments)"
     echo "     • Nix-based development environment"
     echo "     • Native performance (no containers/VMs)"
     echo "     • Per-project isolated binaries and services"
@@ -92,14 +92,14 @@ show_installation_methods() {
     echo "     • Requires Nix package manager"
     echo ""
     
-    echo "  ${BOLD}3. Symfony CLI${NC} (Lightweight - Use local PHP)"
+    echo -e "  ${BOLD}3. Symfony CLI${NC} (Lightweight - Use local PHP)"
     echo "     • Uses your system's PHP, Composer, and Node.js"
     echo "     • Lightweight and fast"
     echo "     • Optional Docker for database only"
     echo "     • Good if you already have PHP/MySQL installed"
     echo ""
     
-    echo "  ${BOLD}0. Exit${NC}"
+    echo -e "  ${BOLD}0. Exit${NC}"
     echo ""
 }
 
@@ -129,13 +129,18 @@ run_docker_install() {
     echo ""
     
     local docker_script="install-docker.sh"
+    local fallback_script="install-symfony-cli.sh"
     
-    # Download if not present
+    # Download Docker script if not present
     if ! download_script "$docker_script"; then
         print_error "Cannot proceed without $docker_script"
         print_info "Please check your internet connection and try again."
         exit 1
     fi
+    
+    # Pre-download the Symfony CLI fallback script silently
+    # (install-docker.sh may need it if Docker isn't available)
+    download_script "$fallback_script" > /dev/null 2>&1 || true
     
     # Run the script
     if [[ -f "$SCRIPT_DIR/$docker_script" ]]; then
