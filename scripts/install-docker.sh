@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/install-docker.sh
 # Robust wrapper for docker-based install: ensure docker daemon is reachable,
-# try Colima / Docker Desktop, then fall back to the symfony-local installer.
+# try Colima / Docker Desktop if needed.
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -17,7 +17,6 @@ success(){ printf '%s %s\n' "[SUCCESS]" "$*" | tee -a "$LOG"; }
 
 # Check docker daemon connectivity
 docker_ok(){
-  # If DOCKER_HOST points to something invalid, docker info will fail.
   if ! command -v docker >/dev/null 2>&1; then
     return 1
   fi
@@ -75,29 +74,19 @@ try_start_docker_desktop(){
   return 1
 }
 
-fallback_to_symfony(){
-  warn "Falling back to local (symfony) installer to keep the install seamless."
-  if [[ -f "${SCRIPT_DIR}/install-symfony-cli.sh" ]]; then
-    bash "${SCRIPT_DIR}/install-symfony-cli.sh" 2>&1 | tee -a "$LOG"
-    rc=${PIPESTATUS[0]:-0}
-    if [[ $rc -ne 0 ]]; then
-      err "Fallback symfony installer failed (rc=$rc). See $LOG"
-      exit $rc
-    fi
-    success "Fallback symfony installer finished."
-    exit 0
-  else
-    err "install-symfony-cli.sh not found in ${SCRIPT_DIR}; cannot fallback."
-    exit 1
-  fi
-}
-
-ensure_docker_or_fallback(){
+ensure_docker_available(){
   sanitize_docker_host
 
   if docker_ok; then
     info "Docker daemon reachable; proceeding with docker-based install."
     return 0
+  fi
+
+  # Check if we're being called with NO_FALLBACK flag from the master installer
+  if [[ "${SHOPWARE_INSTALL_NO_FALLBACK:-}" == "1" ]]; then
+    err "Docker is not available and automatic fallback is disabled."
+    err "Please start Docker and try again, or choose a different installation method."
+    exit 1
   fi
 
   info "Docker daemon not reachable. Will try to start Colima or Docker Desktop (non-interactive attempts)."
@@ -112,47 +101,72 @@ ensure_docker_or_fallback(){
     return 0
   fi
 
-  # still not available -> fallback
-  fallback_to_symfony
+  # If we still can't get Docker running, exit with error
+  err "Unable to start Docker automatically."
+  err "Please start Docker manually:"
+  err "  • macOS: Open Docker Desktop from Applications or run 'colima start'"
+  err "  • Linux: sudo systemctl start docker"
+  err "  • Windows: Start Docker Desktop"
+  err ""
+  err "Then run this installer again."
+  exit 1
 }
 
 # ---- main flow ----
 info "Ensuring docker daemon is available for docker-based install..."
-ensure_docker_or_fallback
+ensure_docker_available
 
 # If we get here, docker is reachable. Proceed with the original docker install behavior.
-# Replace the block below with your original docker install steps if you have them.
-# The example here performs a docker-compose based project start if docker-compose.yaml exists,
-# otherwise it will attempt a generic docker-based create (you can adjust to your original logic).
-
-# Example: if repo provides docker-compose.yml in this script's parent, use it
-PROJECT_ROOT="$(pwd)" # adjust if you need a different working dir
+PROJECT_ROOT="$(pwd)"
 info "Docker available; running docker-based installation steps..."
 
-# If you have a docker-compose workflow in your project, run it. If not, you should replace
-# the placeholder below with your real docker commands (e.g. docker compose up, creating volumes, etc).
+# Check for docker-compose file
 if [[ -f "${SCRIPT_DIR}/docker-compose.yml" ]] || [[ -f "${SCRIPT_DIR}/../docker-compose.yml" ]]; then
   DC_FILE="${SCRIPT_DIR}/docker-compose.yml"
   if [[ ! -f "$DC_FILE" ]]; then DC_FILE="${SCRIPT_DIR}/../docker-compose.yml"; fi
   info "Using docker-compose file: $DC_FILE"
+  
   # prefer modern 'docker compose' if available; fallback to 'docker-compose'
   if docker compose version >/dev/null 2>&1; then
+    info "Pulling Docker images..."
     docker compose -f "$DC_FILE" pull 2>&1 | tee -a "$LOG"
+    info "Starting containers..."
     docker compose -f "$DC_FILE" up -d 2>&1 | tee -a "$LOG"
+    success "Docker containers started successfully!"
   else
     if command -v docker-compose >/dev/null 2>&1; then
+      info "Pulling Docker images..."
       docker-compose -f "$DC_FILE" pull 2>&1 | tee -a "$LOG"
+      info "Starting containers..."
       docker-compose -f "$DC_FILE" up -d 2>&1 | tee -a "$LOG"
+      success "Docker containers started successfully!"
     else
-      warn "No docker compose binary found; you may need 'docker compose' or 'docker-compose' to proceed."
-      # fallback: still continue, but do not error
+      err "No docker compose binary found. Please install 'docker compose' plugin or 'docker-compose'."
+      exit 1
     fi
   fi
+  
+  # Show running containers
+  info "Running containers:"
+  if docker compose version >/dev/null 2>&1; then
+    docker compose -f "$DC_FILE" ps
+  else
+    docker-compose -f "$DC_FILE" ps
+  fi
+  
 else
-  # No compose file found — attempt generic containerized create (placeholder).
-  info "No docker-compose.yml found next to installer. If you expected automatic docker steps, please add them here."
-  # As a safety measure do not run anything destructive; exit successfully so higher-level script knows docker path succeeded.
+  # No compose file found
+  warn "No docker-compose.yml found next to installer or in parent directory."
+  info "To use Docker installation, please ensure you have a docker-compose.yml file."
+  info "You can create one or place this installer in your project directory."
+  exit 1
 fi
 
-success "Docker-based install steps completed (or skipped if none present). Logs: $LOG"
+success "Docker-based install completed successfully! Logs: $LOG"
+echo ""
+info "Next steps:"
+info "  • Check container status: docker compose ps"
+info "  • View logs: docker compose logs -f"
+info "  • Stop containers: docker compose down"
+
 exit 0
