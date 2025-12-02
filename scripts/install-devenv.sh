@@ -105,44 +105,7 @@ install_nix() {
     exit 0
 }
 
-# Check if Devenv is installed
-check_devenv() {
-    print_info "Checking for Devenv..."
-    
-    if command -v devenv &> /dev/null; then
-        print_success "Devenv found: $(devenv --version)"
-        return 0
-    else
-        print_error "Devenv not found!"
-        echo ""
-        
-        if ask_yes_no "Would you like to install Devenv now?" "y"; then
-            install_devenv
-        else
-            print_info "To install Devenv manually, run:"
-            echo "  nix profile install github:cachix/devenv/latest"
-            exit 1
-        fi
-    fi
-}
-
-# ...existing code...
-install_devenv() {
-    print_info "Installing Devenv..."
-    
-    nix profile install github:cachix/devenv/latest
-    
-    print_success "Devenv installed!"
-    
-    # Verify installation
-    if command -v devenv &> /dev/null; then
-        print_success "Devenv is now available: $(devenv --version)"
-    else
-        print_warning "Devenv installed but not found in PATH."
-        print_info "Try restarting your terminal or sourcing your shell config."
-    fi
-}
-
+# Enable Cachix caches (MUST run before heavy Nix operations)
 enable_cachix_caches() {
     # Only relevant if Nix is present
     if ! command -v nix &> /dev/null; then
@@ -182,6 +145,44 @@ enable_cachix_caches() {
             echo "  cachix use $cache"
         fi
     done
+}
+
+# Check if Devenv is installed
+check_devenv() {
+    print_info "Checking for Devenv..."
+    
+    if command -v devenv &> /dev/null; then
+        print_success "Devenv found: $(devenv --version)"
+        return 0
+    else
+        print_error "Devenv not found!"
+        echo ""
+        
+        if ask_yes_no "Would you like to install Devenv now?" "y"; then
+            install_devenv
+        else
+            print_info "To install Devenv manually, run:"
+            echo "  nix profile install github:cachix/devenv/latest"
+            exit 1
+        fi
+    fi
+}
+
+# Install Devenv
+install_devenv() {
+    print_info "Installing Devenv..."
+    
+    nix profile install github:cachix/devenv/latest
+    
+    print_success "Devenv installed!"
+    
+    # Verify installation
+    if command -v devenv &> /dev/null; then
+        print_success "Devenv is now available: $(devenv --version)"
+    else
+        print_warning "Devenv installed but not found in PATH."
+        print_info "Try restarting your terminal or sourcing your shell config."
+    fi
 }
 
 # Check for Git
@@ -297,6 +298,7 @@ create_project_directory() {
     cd "$PROJECT_NAME"
 }
 
+# Clone or create Shopware project
 setup_project() {
     echo ""
     
@@ -309,20 +311,24 @@ setup_project() {
         print_info "This may take several minutes..."
         echo ""
         
-        # Use system Composer if present, otherwise run Composer via nix-shell
+        # Use system Composer if present, otherwise run via nix-shell with correct attribute
         if command -v composer &> /dev/null; then
-            print_info "Using system composer"
-            composer create-project shopware/production .
+            print_info "Using system Composer"
+            composer create-project shopware/production . || {
+                print_warning "System Composer failed, trying nix-shell..."
+                nix-shell -p php83Packages.composer --run "composer create-project shopware/production ." || {
+                    print_error "Both composer methods failed."
+                    exit 1
+                }
+            }
         else
-            print_info "Using nix-shell to run Composer (composer + PHP)"
-            if ! nix-shell -p composer --run "composer create-project shopware/production ."; then
+            print_info "Using nix-shell to run Composer"
+            nix-shell -p php83Packages.composer --run "composer create-project shopware/production ." || {
                 print_error "Failed to run Composer via nix-shell."
-                print_info "You can try enabling cachix caches and re-run the script, or install Composer locally:"
-                echo "  cachix use shopware"
-                echo "  cachix use devenv"
-                echo "  or install Composer: https://getcomposer.org/download/"
+                print_info "Ensure cachix caches were enabled and try again:"
+                echo "  cachix use shopware && cachix use devenv"
                 exit 1
-            fi
+            }
         fi
 
         print_success "Shopware project created"
@@ -544,7 +550,7 @@ main() {
     # Run prerequisite checks
     check_nix
     
-    # Enable Cachix caches (optional, idempotent)
+    # Enable cachix caches FIRST, before heavy Nix operations
     enable_cachix_caches || true
 
     check_devenv
