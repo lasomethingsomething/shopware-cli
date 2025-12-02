@@ -126,7 +126,7 @@ check_devenv() {
     fi
 }
 
-# Install Devenv
+# ...existing code...
 install_devenv() {
     print_info "Installing Devenv..."
     
@@ -141,6 +141,47 @@ install_devenv() {
         print_warning "Devenv installed but not found in PATH."
         print_info "Try restarting your terminal or sourcing your shell config."
     fi
+}
+
+enable_cachix_caches() {
+    # Only relevant if Nix is present
+    if ! command -v nix &> /dev/null; then
+        return 0
+    fi
+
+    print_info "The installer can enable Shopware/Devenv cachix caches to avoid building from source."
+    if ! ask_yes_no "Enable cachix caches? (installs 'cachix' CLI if needed)" "y"; then
+        print_info "Skipping cachix setup. You may see 'ignoring untrusted substituter' warnings."
+        return 0
+    fi
+
+    if ! command -v cachix &> /dev/null; then
+        print_info "Installing cachix CLI via Nix..."
+        if ! nix profile install github:cachix/cachix >/dev/null 2>&1; then
+            print_warning "Failed to install cachix automatically. Please install it and run:"
+            echo "  cachix use shopware"
+            echo "  cachix use devenv"
+            return 1
+        fi
+
+        # Ensure per-user nix profile bin is on PATH for this session
+        if [ -d "$HOME/.nix-profile/bin" ] && [[ ":$PATH:" != *":$HOME/.nix-profile/bin:"* ]]; then
+            export PATH="$HOME/.nix-profile/bin:$PATH"
+        fi
+
+        print_success "cachix installed"
+    else
+        print_success "cachix already installed"
+    fi
+
+    for cache in shopware devenv; do
+        if cachix use "$cache" >/dev/null 2>&1; then
+            print_success "Enabled cachix cache: $cache"
+        else
+            print_warning "Could not enable cache '$cache' automatically. Run manually:"
+            echo "  cachix use $cache"
+        fi
+    done
 }
 
 # Check for Git
@@ -490,10 +531,14 @@ main() {
     
     # Run prerequisite checks
     check_nix
+    
+    # Enable Cachix caches (optional, idempotent)
+    enable_cachix_caches || true
+
     check_devenv
     check_git
     check_port_conflicts
-    
+
     # Configure project
     configure_project
     configure_project_type
