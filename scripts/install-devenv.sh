@@ -297,7 +297,6 @@ create_project_directory() {
     cd "$PROJECT_NAME"
 }
 
-# Clone or create project
 setup_project() {
     echo ""
     
@@ -310,9 +309,22 @@ setup_project() {
         print_info "This may take several minutes..."
         echo ""
         
-        # Use Nix to run Composer
-        nix-shell -p php83 composer --run "composer create-project shopware/production ."
-        
+        # Use system Composer if present, otherwise run Composer via nix-shell
+        if command -v composer &> /dev/null; then
+            print_info "Using system composer"
+            composer create-project shopware/production .
+        else
+            print_info "Using nix-shell to run Composer (composer + PHP)"
+            if ! nix-shell -p composer --run "composer create-project shopware/production ."; then
+                print_error "Failed to run Composer via nix-shell."
+                print_info "You can try enabling cachix caches and re-run the script, or install Composer locally:"
+                echo "  cachix use shopware"
+                echo "  cachix use devenv"
+                echo "  or install Composer: https://getcomposer.org/download/"
+                exit 1
+            fi
+        fi
+
         print_success "Shopware project created"
         
         # Create devenv.nix for production template
